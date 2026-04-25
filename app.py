@@ -200,27 +200,25 @@ if 'resultados' in st.session_state:
 
 #DFP en SVG para ver los resultados de forma interactiva
 
-def obtener_datos_interactivos(eth_sys):
-    # Extraemos unidades específicas por su ID
-    k410 = eth_sys.flowsheet.unit.K410
-    w310 = eth_sys.flowsheet.unit.W310
-    
-    # Consolidamos datos para el SVG
+def obtener_datos_completos(eth_sys, dm, de):
+    # Función auxiliar para extraer datos de los DataFrames de resultados
+    def get_val(df, col_busqueda, fila, col_retorno):
+        try:
+            return df[df[col_busqueda] == fila][col_retorno].values[0]
+        except:
+            return 0
+
     return {
-        "K410": {
-            "temp": round(k410.outs[0].T - 273.15, 1),
-            "pres": round(k410.P / 101325, 2),
-            "calor": round(sum([hu.duty for hu in k410.heat_utilities])/3600, 2)
-        },
-        "W310": {
-            "temp_out": round(w310.outs[0].T - 273.15, 1),
-            "duty": round(w310.heat_utilities[0].duty/3600, 2)
-        }
+        "P110": {"pot": get_val(de, 'Equipo', 'P110', 'Potencia (kW)')},
+        "W310": {"temp": get_val(dm, 'Corriente', 'Mezcla', 'Temp (°C)'), 
+                 "calor": get_val(de, 'Equipo', 'W310', 'Calor (kW)')},
+        "V411": {"pres": get_val(dm, 'Corriente', 'Mezcla_Bifasica', 'Presión (bar)')},
+        "K410": {"temp": get_val(dm, 'Corriente', 'Vapor_caliente', 'Temp (°C)'),
+                 "pres": get_val(dm, 'Corriente', 'Vapor_caliente', 'Presión (bar)'),
+                 "calor": get_val(de, 'Equipo', 'K410', 'Calor (kW)')},
+        "P510": {"pot": get_val(de, 'Equipo', 'P510', 'Potencia (kW)')}
     }
-def generar_svg(datos):
-    k = datos["K410"]
-    w = datos["W310"]
-    
+def generar_svg_completo(d):
     return f"""
     <!DOCTYPE html>
     <html>
@@ -228,29 +226,47 @@ def generar_svg(datos):
         <style>
             .equipo {{ fill: #f8f9fa; stroke: #2c3e50; stroke-width: 2; cursor: pointer; transition: 0.3s; }}
             .equipo:hover {{ fill: #d1ecf1; stroke: #007bff; stroke-width: 3; }}
-            .tooltip {{
-                position: absolute; text-align: left; padding: 10px; font: 12px 'Segoe UI', sans-serif;
-                background: rgba(44, 62, 80, 0.95); color: white; border-radius: 5px; 
-                pointer-events: none; opacity: 0; transition: opacity 0.2s; box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
-            }}
             .linea {{ fill: none; stroke: #34495e; stroke-width: 2; }}
+            .tooltip {{
+                position: absolute; text-align: left; padding: 10px; font: 12px sans-serif;
+                background: rgba(33, 37, 41, 0.95); color: white; border-radius: 4px;
+                pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 1000;
+            }}
+            text {{ font-family: Arial, sans-serif; font-size: 11px; fill: #2c3e50; }}
         </style>
     </head>
     <body>
         <div id="tooltip" class="tooltip"></div>
-        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
-            <path d="M 50 200 L 150 200" class="linea" />
-            <path d="M 250 200 L 400 200" class="linea" />
-            
-            <g class="equipo" onmouseover="show(event, '<b>Calentador W-310</b><br>Temp Salida: {w['temp_out']}°C<br>Carga: {w['duty']} kW')" onmouseout="hide()">
-                <circle cx="200" cy="200" r="30" />
-                <path d="M 185 190 L 215 210 M 185 210 L 215 190" stroke="#2c3e50" stroke-width="2"/>
-                <text x="200" y="250" text-anchor="middle" font-weight="bold">W-310</text>
+        <svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 50 200 L 100 200 M 140 200 L 220 200 M 280 200 L 370 200 M 410 200 L 480 200 M 540 200 L 600 200" class="linea" />
+            <path d="M 510 260 L 510 320 L 580 320" class="linea" />
+
+            <g class="equipo" onmouseover="show(event, '<b>Bomba P-110</b><br>Potencia: {d['P110']['pot']} kW')" onmouseout="hide()">
+                <circle cx="120" cy="200" r="20" />
+                <path d="M 110 190 L 130 200 L 110 210 Z" fill="#2c3e50"/>
+                <text x="120" y="240" text-anchor="middle" font-weight="bold">P-110</text>
             </g>
 
-            <g class="equipo" onmouseover="show(event, '<b>Flash K-410</b><br>Temp: {k['temp']}°C<br>Presión: {k['pres']} atm<br>Calor: {k['calor']} kW')" onmouseout="hide()">
-                <rect x="400" y="140" width="60" height="120" rx="15" />
-                <text x="430" y="130" text-anchor="middle" font-weight="bold">K-410</text>
+            <g class="equipo" onmouseover="show(event, '<b>Calentador W-310</b><br>Temp: {d['W310']['temp']}°C<br>Carga: {d['W310']['calor']} kW')" onmouseout="hide()">
+                <circle cx="250" cy="200" r="30" />
+                <path d="M 235 185 Q 250 215 265 185" fill="none" stroke="#2c3e50" stroke-width="2"/>
+                <text x="250" y="250" text-anchor="middle" font-weight="bold">W-310</text>
+            </g>
+
+            <g class="equipo" onmouseover="show(event, '<b>Válvula V-411</b><br>Presión Salida: {d['V411']['pres']} bar')" onmouseout="hide()">
+                <path d="M 370 190 L 410 210 L 410 190 L 370 210 Z" />
+                <text x="390" y="230" text-anchor="middle" font-weight="bold">V-411</text>
+            </g>
+
+            <g class="equipo" onmouseover="show(event, '<b>Flash K-410</b><br>Temp: {d['K410']['temp']}°C<br>Presión: {d['K410']['pres']} bar<br>Carga: {d['K410']['calor']} kW')" onmouseout="hide()">
+                <rect x="480" y="140" width="60" height="120" rx="15" />
+                <text x="510" y="130" text-anchor="middle" font-weight="bold">K-410</text>
+            </g>
+
+            <g class="equipo" onmouseover="show(event, '<b>Bomba P-510</b><br>Potencia: {d['P510']['pot']} kW')" onmouseout="hide()">
+                <circle cx="600" cy="320" r="20" />
+                <path d="M 590 310 L 610 320 L 590 330 Z" fill="#2c3e50"/>
+                <text x="600" y="360" text-anchor="middle" font-weight="bold">P-510</text>
             </g>
         </svg>
 
@@ -270,23 +286,10 @@ def generar_svg(datos):
 if 'resultados' in st.session_state:
     dm, de, ec, pf = st.session_state['resultados']
     
-    # --- NUEVA SECCIÓN: DIAGRAMA INTERACTIVO ---
-    st.divider()
-    st.subheader("🗺️ Gemelo Digital: Diagrama Interactivo")
+    st.subheader("🗺️ Diagrama de Proceso Interactivo (PBP: {} Años)".format(ec["PBP (Años)"]))
     
-    # 1. Recuperamos los datos del sistema BioSTEAM (asumiendo que eth_sys es accesible o guardado)
-    # Nota: Es recomendable guardar el diccionario de datos en session_state también
-    try:
-        # Aquí inyectamos los datos calculados de la simulación actual
-        datos_pfd = {
-            "K410": {"temp": dm[dm['Corriente']=='Vapor_caliente']['Temp (°C)'].values[0], 
-                     "pres": dm[dm['Corriente']=='Vapor_caliente']['Presión (bar)'].values[0],
-                     "calor": de[de['Equipo']=='K410']['Calor (kW)'].values[0] if 'K410' in de['Equipo'].values else 0},
-            "W310": {"temp_out": dm[dm['Corriente']=='Mezcla']['Temp (°C)'].values[0],
-                     "duty": de[de['Equipo']=='W310']['Calor (kW)'].values[0] if 'W310' in de['Equipo'].values else 0}
-        }
-        
-        html_svg = generar_svg(datos_pfd)
-        components.html(html_svg, height=450)
-    except Exception as e:
-        st.warning("El diagrama interactivo se mostrará cuando la simulación sea exitosa.")
+    # Preparamos los datos
+    datos_completos = obtener_datos_completos(None, dm, de)
+    
+    # Renderizamos el SVG
+    components.html(generar_svg_completo(datos_completos), height=400)
