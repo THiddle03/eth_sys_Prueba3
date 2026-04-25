@@ -229,7 +229,7 @@ def generar_svg_completo(d):
             .linea {{ fill: none; stroke: #34495e; stroke-width: 2; }}
             .tooltip {{
                 position: absolute; text-align: left; padding: 10px; font: 12px sans-serif;
-                background: rgba(237, 232, 208, 0.95); color: white; border-radius: 4px;
+                background: rgba(237, 232, 208, 0.95); color: black; border-radius: 4px;
                 pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 1000;
             }}
             text {{ font-family: Arial, sans-serif; font-size: 11px; fill: #2c3e50; }}
