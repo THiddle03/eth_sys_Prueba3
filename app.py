@@ -217,7 +217,7 @@ def obtener_datos_interactivos(eth_sys):
             "duty": round(w310.heat_utilities[0].duty/3600, 2)
         }
     }
-  def generar_svg(datos):
+def generar_svg(datos):
     k = datos["K410"]
     w = datos["W310"]
     
@@ -267,7 +267,7 @@ def obtener_datos_interactivos(eth_sys):
     </body>
     </html>
     """
-    if 'resultados' in st.session_state:
+if 'resultados' in st.session_state:
     dm, de, ec, pf = st.session_state['resultados']
     
     # --- NUEVA SECCIÓN: DIAGRAMA INTERACTIVO ---
