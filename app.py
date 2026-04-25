@@ -198,65 +198,95 @@ if 'resultados' in st.session_state:
             st.warning("Falta GEMINI_API_KEY.")
     # -------------------------------------------------------------
 
+#DFP en SVG para ver los resultados de forma interactiva
 
-# Asumiendo que esta es tu variable con los datos del K-410 de BioSTEAM
-# En tu código real, extraerías esto de tu DataFrame 'de' (datos de energía) o de tu modelo
-datos_k410 = {
-    "temp": 92.17,
-    "presion": 1.0,
-    "flujo_vapor": 9.44,
-    "calor": 14.34
-}
+def obtener_datos_interactivos(eth_sys):
+    # Extraemos unidades específicas por su ID
+    k410 = eth_sys.flowsheet.unit.K410
+    w310 = eth_sys.flowsheet.unit.W310
+    
+    # Consolidamos datos para el SVG
+    return {
+        "K410": {
+            "temp": round(k410.outs[0].T - 273.15, 1),
+            "pres": round(k410.P / 101325, 2),
+            "calor": round(sum([hu.duty for hu in k410.heat_utilities])/3600, 2)
+        },
+        "W310": {
+            "temp_out": round(w310.outs[0].T - 273.15, 1),
+            "duty": round(w310.heat_utilities[0].duty/3600, 2)
+        }
+    }
+  def generar_svg(datos):
+    k = datos["K410"]
+    w = datos["W310"]
+    
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            .equipo {{ fill: #f8f9fa; stroke: #2c3e50; stroke-width: 2; cursor: pointer; transition: 0.3s; }}
+            .equipo:hover {{ fill: #d1ecf1; stroke: #007bff; stroke-width: 3; }}
+            .tooltip {{
+                position: absolute; text-align: left; padding: 10px; font: 12px 'Segoe UI', sans-serif;
+                background: rgba(44, 62, 80, 0.95); color: white; border-radius: 5px; 
+                pointer-events: none; opacity: 0; transition: opacity 0.2s; box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+            }}
+            .linea {{ fill: none; stroke: #34495e; stroke-width: 2; }}
+        </style>
+    </head>
+    <body>
+        <div id="tooltip" class="tooltip"></div>
+        <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 50 200 L 150 200" class="linea" />
+            <path d="M 250 200 L 400 200" class="linea" />
+            
+            <g class="equipo" onmouseover="show(event, '<b>Calentador W-310</b><br>Temp Salida: {w['temp_out']}°C<br>Carga: {w['duty']} kW')" onmouseout="hide()">
+                <circle cx="200" cy="200" r="30" />
+                <path d="M 185 190 L 215 210 M 185 210 L 215 190" stroke="#2c3e50" stroke-width="2"/>
+                <text x="200" y="250" text-anchor="middle" font-weight="bold">W-310</text>
+            </g>
 
-# 1. Creamos el HTML/SVG combinando Python f-strings
-svg_interactivo = f"""
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        .equipo {{ fill: #e0f7fa; stroke: #006064; stroke-width: 2; cursor: pointer; transition: 0.2s; }}
-        .equipo:hover {{ fill: #b2ebf2; stroke: #ff6f00; }}
-        .tooltip {{
-            position: absolute; text-align: left; padding: 8px; font: 12px sans-serif;
-            background: #2b2b2b; color: white; border-radius: 4px; pointer-events: none;
-            opacity: 0; transition: opacity 0.3s;
-        }}
-    </style>
-</head>
-<body>
-    <div id="tooltip" class="tooltip"></div>
+            <g class="equipo" onmouseover="show(event, '<b>Flash K-410</b><br>Temp: {k['temp']}°C<br>Presión: {k['pres']} atm<br>Calor: {k['calor']} kW')" onmouseout="hide()">
+                <rect x="400" y="140" width="60" height="120" rx="15" />
+                <text x="430" y="130" text-anchor="middle" font-weight="bold">K-410</text>
+            </g>
+        </svg>
 
-    <svg viewBox="0 0 800 450" ... > 
-       ...
-       <g id="K-410" transform="translate(580, 180)" class="equipo" 
-          onmouseover="showData(event, 'Tanque Flash K-410<br>Temp: {datos_k410['temp']} °C<br>Presión: {datos_k410['presion']} bar<br>Calor: {datos_k410['calor']} kW')" 
-          onmouseout="hideData()">
-         <rect x="-25" y="-60" width="50" height="120" rx="15" />
-         <text x="0" y="-70" fill="black" font-weight="bold">K-410</text>
-       </g>
-       ...
-    </svg>
-
-    <script>
-        var tooltip = document.getElementById("tooltip");
+        <script>
+            var tip = document.getElementById("tooltip");
+            function show(e, txt) {{
+                tip.innerHTML = txt;
+                tip.style.opacity = 1;
+                tip.style.left = (e.pageX + 20) + 'px';
+                tip.style.top = (e.pageY - 20) + 'px';
+            }}
+            function hide() {{ tip.style.opacity = 0; }}
+        </script>
+    </body>
+    </html>
+    """
+if 'resultados' in st.session_state:
+    dm, de, ec, pf = st.session_state['resultados']
+    
+    # --- NUEVA SECCIÓN: DIAGRAMA INTERACTIVO ---
+    st.divider()
+    st.subheader("🗺️ Gemelo Digital: Diagrama Interactivo")
+    
+    # 1. Recuperamos los datos del sistema BioSTEAM (asumiendo que eth_sys es accesible o guardado)
+    # Nota: Es recomendable guardar el diccionario de datos en session_state también
+    try:
+        # Aquí inyectamos los datos calculados de la simulación actual
+        datos_pfd = {
+            "K410": {"temp": dm[dm['Corriente']=='Vapor_caliente']['Temp (°C)'].values[0], 
+                     "pres": dm[dm['Corriente']=='Vapor_caliente']['Presión (bar)'].values[0],
+                     "calor": de[de['Equipo']=='K410']['Calor (kW)'].values[0] if 'K410' in de['Equipo'].values else 0},
+            "W310": {"temp_out": dm[dm['Corriente']=='Mezcla']['Temp (°C)'].values[0],
+                     "duty": de[de['Equipo']=='W310']['Calor (kW)'].values[0] if 'W310' in de['Equipo'].values else 0}
+        }
         
-        function showData(evt, text) {{
-            tooltip.innerHTML = text;
-            tooltip.style.opacity = 1;
-            tooltip.style.left = (evt.pageX + 15) + 'px';
-            tooltip.style.top = (evt.pageY - 15) + 'px';
-        }}
-        
-        function hideData() {{
-            tooltip.style.opacity = 0;
-        }}
-    </script>
-</body>
-</html>
-"""
-
-# 2. Renderizamos el componente en Streamlit
-st.subheader("🗺️ Diagrama de Flujo Interactivo")
-components.html(svg_interactivo, height=500, scrolling=False)
-
-# -------------------------------------------------------------
+        html_svg = generar_svg(datos_pfd)
+        components.html(html_svg, height=450)
+    except Exception as e:
+        st.warning("El diagrama interactivo se mostrará cuando la simulación sea exitosa.")
