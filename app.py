@@ -267,7 +267,7 @@ def obtener_datos_interactivos(eth_sys):
     </body>
     </html>
     """
-if 'resultados' in st.session_state:
+    if 'resultados' in st.session_state:
     dm, de, ec, pf = st.session_state['resultados']
     
     # --- NUEVA SECCIÓN: DIAGRAMA INTERACTIVO ---
