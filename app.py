@@ -5,6 +5,7 @@ import pandas as pd
 import google.generativeai as genai
 import os
 import uuid
+import streamlit.components.v1 as components
 
 # 1. CONFIGURACIÓN DE PÁGINA
 st.set_page_config(page_title="Simulador Bioetanol Pro v5", layout="wide")
@@ -139,9 +140,6 @@ if st.sidebar.button("Simular Proceso", type="primary"):
     else:
         st.session_state['resultados'] = (dm, de, ec, pf)
 
-  
-# ... (Todo el código anterior de simulación y lógica se mantiene igual)
-
 # ... (Todo el código anterior de simulación y lógica se mantiene igual)
 
 # MOSTRAR RESULTADOS
@@ -199,3 +197,66 @@ if 'resultados' in st.session_state:
         else:
             st.warning("Falta GEMINI_API_KEY.")
     # -------------------------------------------------------------
+
+
+# Asumiendo que esta es tu variable con los datos del K-410 de BioSTEAM
+# En tu código real, extraerías esto de tu DataFrame 'de' (datos de energía) o de tu modelo
+datos_k410 = {
+    "temp": 92.17,
+    "presion": 1.0,
+    "flujo_vapor": 9.44,
+    "calor": 14.34
+}
+
+# 1. Creamos el HTML/SVG combinando Python f-strings
+svg_interactivo = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .equipo {{ fill: #e0f7fa; stroke: #006064; stroke-width: 2; cursor: pointer; transition: 0.2s; }}
+        .equipo:hover {{ fill: #b2ebf2; stroke: #ff6f00; }}
+        .tooltip {{
+            position: absolute; text-align: left; padding: 8px; font: 12px sans-serif;
+            background: #2b2b2b; color: white; border-radius: 4px; pointer-events: none;
+            opacity: 0; transition: opacity 0.3s;
+        }}
+    </style>
+</head>
+<body>
+    <div id="tooltip" class="tooltip"></div>
+
+    <svg viewBox="0 0 800 450" ... > 
+       ...
+       <g id="K-410" transform="translate(580, 180)" class="equipo" 
+          onmouseover="showData(event, 'Tanque Flash K-410<br>Temp: {datos_k410['temp']} °C<br>Presión: {datos_k410['presion']} bar<br>Calor: {datos_k410['calor']} kW')" 
+          onmouseout="hideData()">
+         <rect x="-25" y="-60" width="50" height="120" rx="15" />
+         <text x="0" y="-70" fill="black" font-weight="bold">K-410</text>
+       </g>
+       ...
+    </svg>
+
+    <script>
+        var tooltip = document.getElementById("tooltip");
+        
+        function showData(evt, text) {{
+            tooltip.innerHTML = text;
+            tooltip.style.opacity = 1;
+            tooltip.style.left = (evt.pageX + 15) + 'px';
+            tooltip.style.top = (evt.pageY - 15) + 'px';
+        }}
+        
+        function hideData() {{
+            tooltip.style.opacity = 0;
+        }}
+    </script>
+</body>
+</html>
+"""
+
+# 2. Renderizamos el componente en Streamlit
+st.subheader("🗺️ Diagrama de Flujo Interactivo")
+components.html(svg_interactivo, height=500, scrolling=False)
+
+# -------------------------------------------------------------
