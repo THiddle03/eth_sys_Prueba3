@@ -44,7 +44,7 @@ def correr_simulacion(flow_water, flow_eth, temp_mosto, T_flash, P_flash,
     P510 = bst.Pump("P510", ins=K410-1, outs=vinazas_retorno, P=3*101325)
 
     # --- SISTEMA ---
-    eth_sys = bst.System("planta_etanol", path=(P100, W210, W220, V100, V1, W310, P200))
+    eth_sys = bst.System("planta_etanol", path=(P110, W210, W310, V411, K410, W510, P510))
     
     try:
         eth_sys.simulate()
